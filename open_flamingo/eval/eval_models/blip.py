@@ -4,7 +4,7 @@ from PIL import Image
 import torch
 
 from transformers import Blip2Processor, Blip2ForConditionalGeneration
-from models.eval_model import BaseEvalModel
+from eval_models.eval_model import BaseEvalModel
 from utils import unwrap_model
 from transformers.modeling_outputs import CausalLMOutputWithPast
 
@@ -92,7 +92,8 @@ class EvalModel(BaseEvalModel):
                 )
 
         # Extract only the new gnerated tokens
-        outputs = outputs[:, len(input_ids[0]) :]
+        if not unwrap_model(self.model).config.is_encoder_decoder:
+            outputs = outputs[:, len(input_ids[0]) :]
 
         return self.tokenizer.batch_decode(outputs, skip_special_tokens=True)
 

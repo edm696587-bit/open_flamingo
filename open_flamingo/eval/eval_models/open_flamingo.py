@@ -16,7 +16,7 @@ class EvalModel(BaseEvalModel):
     def __init__(self, model_args):
         super().__init__(model_args)
 
-        if model_args["model_family"] == "openflamingo":
+        if model_args["model_family"] == "flamingo":
             assert "cross_attn_every_n_layers" in model_args, "cross_attn_every_n_layers is required for Flamingo models"
         else:
             assert "cross_attn_every_n_layers" not in model_args, "cross_attn_every_n_layers is only for Flamingo models"

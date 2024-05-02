@@ -14,6 +14,7 @@ SUPPORTED_TASKS = [
     "okvqa",
     "vizwiz",
     "textvqa",
+    "gqa",
     "hateful_memes",
     "imagenet",
 ]
@@ -104,7 +105,7 @@ class VQADataset(Dataset):
             )
         elif self.dataset_name == "vizwiz":
             return os.path.join(self.image_dir_path, question["image_id"])
-        elif self.dataset_name == "textvqa":
+        elif self.dataset_name == "textvqa" or self.dataset_name == "gqa":
             return os.path.join(self.image_dir_path, f"{question['image_id']}.jpg")
         else:
             raise Exception(f"Unknown VQA dataset {self.dataset_name}")

@@ -108,6 +108,9 @@ class EvalModel(BaseEvalModel):
     
     def get_textvqa_prompt(self, question, answer=None) -> str:
         return f"Question:{question} Short answer:{answer if answer is not None else ''}"
+    
+    def get_gqa_prompt(self, question, answer=None) -> str:
+        return f"Question:{question} Short answer:{answer if answer is not None else ''}"
 
     def get_coco_prompt(self, caption=None) -> str:
         return f"A photo of {caption if caption is not None else ''}"

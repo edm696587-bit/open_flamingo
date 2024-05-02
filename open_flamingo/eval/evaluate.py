@@ -139,6 +139,14 @@ parser.add_argument(
     default=False,
     help="Whether to evaluate on TextVQA.",
 )
+
+parser.add_argument(
+    "--eval_gqa",
+    action="store_true",
+    default=False,
+    help="Whether to evaluate on GQA.",
+)
+
 parser.add_argument(
     "--eval_imagenet",
     action="store_true",
@@ -343,6 +351,44 @@ parser.add_argument(
     "--textvqa_test_annotations_json_path",
     type=str,
     help="Path to the textvqa annotations json file.",
+    default=None,
+)
+
+# GQA Dataset
+parser.add_argument(
+    "--gqa_train_image_dir_path",
+    type=str,
+    help="Path to the gqa train images directory.",
+    default=None,
+)
+parser.add_argument(
+    "--gqa_train_questions_json_path",
+    type=str,
+    help="Path to the gqa questions json file.",
+    default=None,
+)
+parser.add_argument(
+    "--gqa_train_annotations_json_path",
+    type=str,
+    help="Path to the gqa annotations json file",
+    default=None,
+)
+parser.add_argument(
+    "--gqa_test_image_dir_path",
+    type=str,
+    help="Path to the gqa test images directory.",
+    default=None,
+)
+parser.add_argument(
+    "--gqa_test_questions_json_path",
+    type=str,
+    help="Path to the gqa questions json file",
+    default=None,
+)
+parser.add_argument(
+    "--gqa_test_annotations_json_path",
+    type=str,
+    help="Path to the gqa annotations json file",
     default=None,
 )
 
@@ -643,6 +689,44 @@ def main():
             if args.rank == 0:
                 print(f"Shots {shot} Mean TextVQA score: {np.nanmean(scores)}")
                 results["textvqa"].append(
+                    {
+                        "shots": shot,
+                        "trials": scores,
+                        "mean": np.nanmean(scores),
+                        "stddev": np.nanstd(scores),
+                    }
+                )
+    
+    if args.eval_gqa:
+        print("Evaluating on GQA...")
+
+        #load cached demonstration features on GQA
+        if args.cached_demonstration_features is not None:
+            cached_features = torch.load(
+                f"{args.cached_demonstration_features}/imagenet.pkl", map_location="cpu"
+            )
+        else:
+            cached_features = None
+        
+        for shot in args.shots:
+            scores = []
+            for seed, trial in zip(args.trial_seeds, range(args.num_trials)):
+                gqa_score = evaluate_vqa(
+                    args=args,
+                    eval_model=eval_model,
+                    num_shots=shot,
+                    seed=seed,
+                    dataset_name="gqa",
+                    max_new_tokens=10,
+                    cached_features=cached_features,
+                )
+                if args.rank == 0:
+                    print(f"Shots {shot} Trial {trial} GQA score: {gqa_score}")
+                    scores.append(gqa_score)
+            
+            if args.rank == 0:
+                print(f"Shots {shot} Mean GQA score: {np.nanmean(scores)}")
+                results["gqa"].append(
                     {
                         "shots": shot,
                         "trials": scores,
@@ -968,6 +1052,13 @@ def evaluate_vqa(
         test_image_dir_path = args.textvqa_image_dir_path
         test_questions_json_path = args.textvqa_test_questions_json_path
         test_annotations_json_path = args.textvqa_test_annotations_json_path
+    elif dataset_name == "gqa":
+        train_image_dir_path = args.gqa_train_image_dir_path
+        train_questions_json_path = args.gqa_train_questions_json_path
+        train_annotations_json_path = args.gqa_train_annotations_json_path
+        test_image_dir_path = args.gqa_test_image_dir_path
+        test_questions_json_path = args.gqa_test_questions_json_path
+        test_annotations_json_path = args.gqa_test_annotations_json_path
     else:
         raise ValueError(f"Unsupported dataset: {dataset_name}")
 

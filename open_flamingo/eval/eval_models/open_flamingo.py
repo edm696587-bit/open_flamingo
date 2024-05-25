@@ -291,6 +291,9 @@ class EvalModel(BaseEvalModel):
     def get_gqa_prompt(self, question, answer=None) -> str:
         return f"<image>Question:{question} Short answer:{answer if answer is not None else ''}{'<|endofchunk|>' if answer is not None else ''}"
 
+    def get_mantiseval_prompt(self, question, answer=None) -> str:
+        return f"<image>Question:{question} Short answer:{answer if answer is not None else ''}{'<|endofchunk|>' if answer is not None else ''}"
+
     def get_coco_prompt(self, caption=None) -> str:
         return f"<image>Output:{caption if caption is not None else ''}{'<|endofchunk|>' if caption is not None else ''}"
 

@@ -34,7 +34,7 @@ from eval_datasets import (
     HatefulMemesDataset,
 )
 from ok_vqa_utils import postprocess_ok_vqa_generation
-from vqa_metric import compute_vqa_accuracy, postprocess_vqa_generation
+from vqa_metric import compute_vqa_accuracy, postprocess_vqa_generation, compute_mantis_accuracy
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
@@ -152,29 +152,30 @@ parser.add_argument(
     default=None,
 )
 
-## VQAV2, OK-VQA, VizWiz, TextVQA, GQA Datasets
-for task in ['vqav2', 'okvqa', 'vizwiz', 'textvqa', 'gqa']:
+## VQAV2, OK-VQA, VizWiz, TextVQA, GQA, Mantis-Eval Datasets
+for task in ['vqav2', 'okvqa', 'vizwiz', 'textvqa', 'gqa', 'mantiseval']:
     parser.add_argument(
-        f"--{task}_image_dir_path" if task=='gqa' or task=='textvqa' else f"--{task}_train_image_dir_path",
+        f"--{task}_image_dir_path" if task=='gqa' or task=='textvqa' or task=='mantiseval' else f"--{task}_train_image_dir_path",
         type=str,
         default=None,
     )
-    if task!='gqa' and task!='textvqa':
+    if task != 'mantiseval':
+        if task!='gqa' and task!='textvqa':
+            parser.add_argument(
+                f"--{task}_test_image_dir_path",
+                type=str,
+                default=None,
+            )
         parser.add_argument(
-            f"--{task}_test_image_dir_path",
+            f"--{task}_train_questions_json_path",
             type=str,
             default=None,
         )
-    parser.add_argument(
-        f"--{task}_train_questions_json_path",
-        type=str,
-        default=None,
-    )
-    parser.add_argument(
-        f"--{task}_train_annotations_json_path",
-        type=str,
-        default=None,
-    )
+        parser.add_argument(
+            f"--{task}_train_annotations_json_path",
+            type=str,
+            default=None,
+        )
     parser.add_argument(
         f"--{task}_test_questions_json_path",
         type=str,
@@ -315,7 +316,7 @@ def main():
                         }
                     )
     
-    for vqa_task in ["okvqa", "vqav2", "vizwiz", "textvqa", "gqa"]:
+    for vqa_task in ["okvqa", "vqav2", "vizwiz", "textvqa", "gqa", "mantiseval"]:
         if var_args[f"eval_{vqa_task}"]:
             print(f"Evaluating on {vqa_task}...")
 
@@ -601,16 +602,16 @@ def evaluate_vqa(
         float: accuracy score
     """
     var_args = vars(args)
-    for task in ["okvqa", "vqav2", "vizwiz", "textvqa", "gqa"]:
+    for task in ["okvqa", "vqav2", "vizwiz", "textvqa", "gqa", "mantiseval"]:
         if dataset_name == task:
             task = task
-            train_image_dir_path = var_args[f"{task}_train_image_dir_path" if task!="textvqa" and task!="gqa" else f"{task}_image_dir_path"]
-            train_questions_json_path = var_args[f"{task}_train_questions_json_path"]
-            train_annotations_json_path = var_args[f"{task}_train_annotations_json_path"]
-            test_image_dir_path = var_args[f"{task}_test_image_dir_path" if task!="textvqa" and task!="gqa" else f"{task}_image_dir_path"]
+            train_image_dir_path = var_args[f"{task}_train_image_dir_path" if task!="textvqa" and task!="gqa" and task!="mantiseval" else f"{task}_image_dir_path"]
+            train_questions_json_path = var_args[f"{task}_train_questions_json_path"] if task!="mantiseval" else var_args[f"{task}_test_questions_json_path"]
+            train_annotations_json_path = var_args[f"{task}_train_annotations_json_path"] if task!="mantiseval" else var_args[f"{task}_test_annotations_json_path"]
+            test_image_dir_path = var_args[f"{task}_test_image_dir_path" if task!="textvqa" and task!="gqa" and task!="mantiseval" else f"{task}_image_dir_path"]
             test_questions_json_path = var_args[f"{task}_test_questions_json_path"]
             test_annotations_json_path = var_args[f"{task}_test_annotations_json_path"]
-    if dataset_name not in ["okvqa", "vqav2", "vizwiz", "textvqa", "gqa"]:
+    if dataset_name not in ["okvqa", "vqav2", "vizwiz", "textvqa", "gqa", "mantiseval"]:
         raise ValueError(f"Unsupported dataset: {dataset_name}")
 
     train_dataset = VQADataset(
@@ -675,7 +676,10 @@ def evaluate_vqa(
                 context_images = [x["image"] for x in batch_demo_samples[i]]
             else:
                 context_images = []
-            batch_images.append(context_images + [batch["image"][i]])
+            if dataset_name == "mantiseval":
+                batch_images.append(context_images + batch["image"][i])
+            else:
+                batch_images.append(context_images + [batch["image"][i]])
 
             context_text = "".join(
                 [
@@ -703,7 +707,7 @@ def evaluate_vqa(
             num_beams=num_beams,
             length_penalty=length_penalty,
         )
-
+        
         process_function = (
             postprocess_ok_vqa_generation
             if dataset_name == "okvqa"
@@ -732,11 +736,17 @@ def evaluate_vqa(
         f.write(json.dumps(all_predictions, indent=4))
 
     if test_annotations_json_path is not None:
-        acc = compute_vqa_accuracy(
-            f"{dataset_name}results_{random_uuid}.json",
-            test_questions_json_path,
-            test_annotations_json_path,
-        )
+        if dataset_name == "mantiseval":
+            acc = compute_mantis_accuracy(
+                f"{dataset_name}results_{random_uuid}.json",
+                test_annotations_json_path,
+            )
+        else:
+            acc = compute_vqa_accuracy(
+                f"{dataset_name}results_{random_uuid}.json",
+                test_questions_json_path,
+                test_annotations_json_path,
+            )
         # delete the temporary file
         os.remove(f"{dataset_name}results_{random_uuid}.json")
 

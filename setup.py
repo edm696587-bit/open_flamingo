@@ -10,7 +10,7 @@ if __name__ == "__main__":
         "einops",
         "einops-exts",
         "transformers>=4.28.1",
-        "torch==2.5.1",
+        "torch==2.6.0",
         "pillow",
         "open_clip_torch>=2.16.0",
         "sentencepiece",
